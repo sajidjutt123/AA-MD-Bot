@@ -29,7 +29,11 @@ trap 'STEP_ERR=$?; echo -e "\n${RE}━━━━━━━━━━━━━━━
   echo -e "${RE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${R}\n"; exit $STEP_ERR' ERR
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-REPO_URL="https://github.com/ahsanaliwadani/AA-MD-Bot.git"
+# Fork/branch override — deploy your own copy without editing this file:
+#   REPO_URL=https://github.com/you/AA-MD-Bot.git REPO_BRANCH=my-branch \
+#     bash <(curl -fsSL https://raw.githubusercontent.com/you/AA-MD-Bot/my-branch/AA-MD-Bot/deploy/setup.sh)
+REPO_URL="${REPO_URL:-https://github.com/ahsanaliwadani/AA-MD-Bot.git}"
+REPO_BRANCH="${REPO_BRANCH:-main}"
 REPO_CLONE_DIR="/home/ubuntu/AA-MD-Bot-repo"   # git clone yahan hoga
 NODE_VERSION="20"
 PM2_APP_NAME="aa-md-bot"
@@ -539,15 +543,18 @@ hdr "9. Bot Code"
 if [ -d "$REPO_CLONE_DIR/.git" ]; then
   inf "Repository already exists — git pull kar rahe hain..."
   cd "$REPO_CLONE_DIR"
-  # Reset any local changes that might block pull
+  # Honour the requested remote + branch (fork/branch overrides included)
+  git remote set-url origin "$REPO_URL"
   git fetch --all --quiet
-  git reset --hard "origin/$(git rev-parse --abbrev-ref HEAD)" --quiet
+  git checkout "$REPO_BRANCH" --quiet 2>/dev/null || git checkout -b "$REPO_BRANCH" "origin/$REPO_BRANCH" --quiet
+  # Reset any local changes that might block pull
+  git reset --hard "origin/$REPO_BRANCH" --quiet
   git pull --ff-only --quiet
-  ok "Code updated ($(git log -1 --format='%h %s' 2>/dev/null || echo 'latest'))"
+  ok "Code updated — $REPO_BRANCH @ $(git log -1 --format='%h %s' 2>/dev/null || echo 'latest')"
 else
   inf "Repository clone ho raha hai..."
-  git clone "$REPO_URL" "$REPO_CLONE_DIR"
-  ok "Code cloned successfully"
+  git clone --branch "$REPO_BRANCH" "$REPO_URL" "$REPO_CLONE_DIR"
+  ok "Code cloned successfully ($REPO_BRANCH)"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -719,6 +726,13 @@ SERVER_ID=server-1
 
 # ── Database — MongoDB on this VM (auto-configured) ──────────
 MONGODB_URI=${MONGODB_URI}
+#
+# ── Supabase (OPTIONAL — recommended for 24/7) ───────────────
+# Supabase dashboard → Project Settings → Database → Connection string →
+# "Session pooler". Then run supabase/schema.sql once in the SQL editor.
+# When set, Supabase wins over MongoDB (settings + WhatsApp auth keys persist).
+# SUPABASE_DB_URL=postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres
+# SUPABASE_POOL_MAX=5
 
 # ── Security — auto-generated ─────────────────────────────────
 SESSION_SECRET=$(openssl rand -hex 32)
@@ -1340,6 +1354,13 @@ echo -e "  ${DIM}sudo systemctl status nginx ${R}← Nginx status"
 echo -e "  ${DIM}sudo tail -f /var/log/nginx/error.log${R}← Nginx logs"
 echo ""
 
+echo -e "  ${B}━━━ Dashboard Login ━━━${R}"
+echo -e "  URL           : ${C}${HTTPS_URL_DISPLAY}${R}  (ya http://${PUBLIC_IP}:5000)"
+echo -e "  Token         : ${C}\$(grep ^SESSION_SECRET ${ENV_FILE} | cut -d= -f2)${R}"
+echo -e "  ${DIM}Login screen mein API base khaali chhoro (same origin).${R}"
+echo -e "  ${DIM}Kisi aur device/Vercel se kholna ho to DASHBOARD_ORIGINS .env mein add karo.${R}"
+echo ""
+
 echo -e "  ${B}━━━ WhatsApp Pairing ━━━${R}"
 echo -e "  1. Browser mein kholo: ${C}${HTTP_URL}${R}"
 echo -e "     ya: ${C}${HTTP_DOMAIN_URL}${R}"
@@ -1349,7 +1370,10 @@ echo -e "  4. WhatsApp → Settings → Linked Devices → Link with phone numbe
 echo -e "  5. 8-digit code enter karo — ho gaya ✅"
 echo ""
 
-echo -e "  ${Y}⚠  MONGODB URI aur SESSION_SECRET .env mein save hain.${R}"
+echo -e "  ${Y}⚠  MONGODB URI aur SESSION_SECRET .env mein save hain — dashboard token wahi hai.${R}"
+echo -e "  ${DIM}   cat ${ENV_FILE} | grep -E 'SESSION_SECRET|SUPABASE'${R}"
+echo -e "  ${DIM}   Supabase (optional, 24/7 ke liye behtar): SUPABASE_DB_URL .env mein daalo,${R}"
+echo -e "  ${DIM}   phir: pm2 restart ${PM2_APP_NAME}   →  docs: deploy/SUPABASE-VERCEL.md${R}"
 echo -e "  ${DIM}   sudo chmod 600 ${ENV_FILE}${R}"
 echo ""
 echo -e "  ${DIM}Total deploy time: ${ELAPSED}s${R}"
