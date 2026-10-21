@@ -25,7 +25,7 @@ export default [
   // ── .report @user reason ──────────────────────────────────────────────────
   {
     command: 'report',
-    alias: ['reportuser', 'flag'],
+    alias: ['reportuser'],
     description: 'Report a member to the group admins',
     category: 'admin',
     groupOnly: true,

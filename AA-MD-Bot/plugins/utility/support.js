@@ -4,6 +4,7 @@
 // ============================================
 
 import config from '../../config.js';
+import { getPrefixes } from '../../lib/helper.js';
 
 const LINK = config.channelLink || 'https://whatsapp.com/channel/0029Vb8Yk2LL2AU78HliE617';
 
@@ -14,7 +15,7 @@ function getOwnerJid() {
 
 export default {
   command: 'support',
-  alias: ['report', 'bug', 'contact', 'feedback'],
+  alias: ['bug', 'contact', 'feedback'],
   description: 'Report an issue or contact the owner',
   category: 'utility',
   usage: '.report <message> | .contact | .support',
@@ -22,7 +23,7 @@ export default {
   async execute({ sock, jid, msg, senderJid, args, command }) {
     const cmd       = command.toLowerCase();
     const ownerJid  = getOwnerJid();
-    const pref      = (config.prefix?.[0] || '.');
+    const pref      = getPrefixes()[0];
     const pushName  = msg.pushName || 'Unknown';
     const senderNum = senderJid.split('@')[0];
 

@@ -9,6 +9,7 @@ import pino from 'pino';
 import { EventEmitter } from 'events';
 import { logger } from './logger.js';
 import { db } from './database.js';
+import { getPrefixes } from './helper.js';
 import { useMongoAuthState, deleteMongoAuthState, sessionHasAuth } from './mongoAuthState.js';
 import config from '../config.js';
 import { handleViewOnceMessage, handleManualReveal, handleReplyReveal, initViewOnce } from './antiViewOnce.js';
@@ -613,8 +614,7 @@ export async function createSession(sessionId = 'default', usePairingCode = fals
         const isDm     = !msg.key.remoteJid?.endsWith('@g.us') && !msg.key.remoteJid?.endsWith('@broadcast');
         const isFromMe = msg.key.fromMe;
         const msgText  = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
-        const prefix   = db.settings.getValue('prefix') || '.';
-        const isCmd    = msgText?.startsWith(prefix);
+        const isCmd    = getPrefixes().some((p) => msgText?.startsWith(p));
 
         if (isDm && !isFromMe && !isCmd && msgText) {
           // ── Regular auto-reply (static message) ──

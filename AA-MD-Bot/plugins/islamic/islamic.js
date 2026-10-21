@@ -452,9 +452,9 @@ function formatSalawat(s) {
 
 // ── Islamic Menu ─────────────────────────────────────────────
 export const islamicMenu = {
-  command: 'islamic_menu',
-  alias: ['islamicmenu', 'islamic'],
-  description: 'Full Islamic commands menu',
+  command: 'duas_menu',
+  alias: ['duas', 'dmenu'],
+  description: 'Static Islamic content index (duas, zikr, hadith, kalimas)',
   category: 'islamic',
   async execute({ reply }) {
     reply(
@@ -610,7 +610,7 @@ export const islamFact = {
 
 export const quranReminder = {
   command: 'quran_reminder',
-  alias: ['daily_ayah', 'ayah'],
+  alias: ['daily_ayah'],
   description: 'Daily Quran reminder / Ayah',
   category: 'islamic',
   async execute({ reply }) {

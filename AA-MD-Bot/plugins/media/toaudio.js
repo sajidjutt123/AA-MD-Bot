@@ -1,12 +1,10 @@
-import { exec } from 'child_process';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateId } from '../../lib/helper.js';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tmpDir = path.join(__dirname, '../../temp');
 
@@ -35,7 +33,7 @@ export default {
       const outputPath = path.join(tmpDir, `${id}.mp3`);
 
       await fs.writeFile(inputPath, buffer);
-      await execAsync(`ffmpeg -i "${inputPath}" -vn -ar 44100 -ac 2 -b:a 128k "${outputPath}"`, { timeout: 30000 });
+      await runFfmpeg(['-y', '-i', inputPath, '-vn', '-ar', '44100', '-ac', '2', '-b:a', '128k', outputPath], 30000);
 
       const audioBuffer = await fs.readFile(outputPath);
 

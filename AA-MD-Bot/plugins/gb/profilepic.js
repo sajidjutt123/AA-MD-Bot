@@ -5,7 +5,7 @@
 
 export default {
   command: 'pp',
-  alias: ['profilepic', 'pfp', 'dpview', 'getpp', 'viewdp'],
+  alias: ['profilepic', 'pfp', 'dpview', 'getpp', 'viewdp', 'spp', 'profile'],
   category: 'gb',
   description: 'View & download full profile picture of any contact',
   usage: '.pp <number> | .pp (reply to a message)',

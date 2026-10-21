@@ -52,3 +52,6 @@ Thumbs.db
 # which break npm install on external servers (Oracle VM, Railway, etc.)
 # Always run fresh: npm install --registry=https://registry.npmjs.org/
 AA-MD-Bot/package-lock.json
+
+# lockfiles are regenerated per environment (see AA-MD-Bot/.gitignore)
+package-lock.json

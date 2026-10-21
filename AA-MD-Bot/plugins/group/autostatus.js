@@ -30,8 +30,29 @@ export default {
     if (cmd === 'statusreact') {
       const cur = db.settings.getValue('autoStatusReact') ?? config.autoStatusReact ?? true;
       const emoji = db.settings.getValue('statusEmoji') ?? config.statusEmoji ?? '❤️';
-      if (!toggle || !['on', 'off'].includes(toggle)) {
-        return reply(`${emoji} *Auto Status React* is *${cur ? 'ON ✅' : 'OFF ❌'}*\n\nReacts to statuses with: ${emoji}\nUsage: *.statusreact on/off*`);
+
+      // `.statusreact 🔥` — set the reaction emoji (statusEmoji had no writer,
+      // so this setting was previously stuck on the default forever).
+      if (toggle && !['on', 'off'].includes(toggle)) {
+        if (/^(emoji|set)$/i.test(toggle)) {
+          return reply(`Usage: *.statusreact <emoji>*  e.g. *.statusreact 🔥*\n\nCurrent: ${emoji}`);
+        }
+        const chars = [...args[0]];
+        if (chars.length > 4) {
+          return reply(`❌ Send a single emoji, e.g. *.statusreact 🔥*`);
+        }
+        db.settings.setValue('statusEmoji', args[0]);
+        return reply(`✅ Status reaction emoji set to *${args[0]}*\n\n> 📸 *AA MD Bot*`);
+      }
+
+      if (!toggle) {
+        return reply(
+          `${emoji} *Auto Status React* is *${cur ? 'ON ✅' : 'OFF ❌'}*\n\n` +
+          `Reacts to statuses with: ${emoji}\n\n` +
+          `Usage:\n` +
+          `• *.statusreact on/off*\n` +
+          `• *.statusreact 🔥*   — change the emoji`
+        );
       }
       const val = toggle === 'on';
       db.settings.setValue('autoStatusReact', val);
@@ -55,7 +76,8 @@ export default {
         `━━━━━━ *Commands* ━━━━━━\n` +
         `*.autostatus on/off*   — Toggle status saving\n` +
         `*.statusview on/off*   — View statuses silently\n` +
-        `*.statusreact on/off* — React to statuses\n\n` +
+        `*.statusreact on/off* — React to statuses\n` +
+        `*.statusreact 🔥*      — Change reaction emoji\n\n` +
         `💡 When ON, every contact's status is forwarded to your own DM.`
       );
     }

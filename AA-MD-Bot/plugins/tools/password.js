@@ -6,7 +6,7 @@
 
 export default {
   command: 'password',
-  alias: ['genpass', 'passwd', 'passgen'],
+  alias: ['genpass', 'passwd', 'passgen', 'pass'],
   description: 'Generate a strong random password',
   category: 'tools',
 

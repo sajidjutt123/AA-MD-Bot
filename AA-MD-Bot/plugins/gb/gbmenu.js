@@ -82,7 +82,7 @@ export default {
       `│  ▸ *${p}autoread on/off*\n` +
       `│     Silently read all messages\n` +
       `│\n` +
-      `│  ▸ *${p}autostatusseen on/off*\n` +
+      `│  ▸ *${p}statusview on/off*\n` +
       `│     Auto-view all statuses\n` +
       `╰${'─'.repeat(34)}\n\n` +
 

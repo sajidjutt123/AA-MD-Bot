@@ -35,13 +35,15 @@ import {
 } from './lib/sessionManager.js';
 import config from './config.js';
 import { cleanTemp, formatDuration } from './lib/helper.js';
+import {
+  applyCors, requireAuth, enforceRateLimit, apiTokenIsEphemeral,
+} from './lib/apiAuth.js';
 import { startBirthdayScheduler } from './plugins/utility/birthday.js';
 import { initTelegramAdmin }    from './lib/telegramAdmin.js';
 import { initTelegramFeatures } from './lib/telegramFeatures.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const startTime = Date.now();
-const dashboardPath = path.join(__dirname, 'dashboard.html');
 
 // Flush pending MongoDB writes before crashing so no settings are lost.
 // flushAll is imported lazily to avoid circular import at module init time.
@@ -87,17 +89,46 @@ function printBanner() {
 ╚══════════════════════════════════════╝`));
 }
 
+// ── Dashboard static files ───────────────────────────────────────────────────
+// Small allowlist (not a directory server) so a crafted path can never escape
+// ./dashboard. Text assets are gzipped when the client accepts it.
+async function serveDashboardFile(req, res, fileName, contentType = 'text/html; charset=utf-8') {
+  const safe = path.basename(fileName);
+  const filePath = path.join(__dirname, 'dashboard', safe);
+  try {
+    const body = await fs.readFile(filePath);
+    const isText = /text\/|javascript|json/.test(contentType);
+    const headers = {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-cache',
+      Vary: 'Accept-Encoding',
+    };
+
+    if (isText && (req.headers['accept-encoding'] || '').includes('gzip')) {
+      const compressed = await new Promise((resolve, reject) =>
+        zlib.gzip(body, (err, buf) => (err ? reject(err) : resolve(buf)))
+      );
+      res.writeHead(200, { ...headers, 'Content-Encoding': 'gzip' });
+      res.end(compressed);
+      return;
+    }
+
+    res.writeHead(200, headers);
+    res.end(body);
+  } catch {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: `dashboard asset not found: ${safe}` }));
+  }
+}
+
 async function startServer() {
   const port = parseInt(process.env.PORT || '5000', 10);
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost`);
 
-    // ── Full CORS — required for Vercel / external frontends ──
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Max-Age', '86400');
+    // ── CORS — allowlist only (was `*`: any page could drive the API) ──
+    applyCors(req, res);
 
     // Handle preflight
     if (req.method === 'OPTIONS') {
@@ -119,28 +150,24 @@ async function startServer() {
 
     const p = stripApi(url.pathname);
 
-    // ── Dashboard HTML ─────────────────────────────────────
+    // ── Dashboard (static panel in ./dashboard) ────────────
     if (p === '/' || p === '' || p === '/dashboard') {
-      try {
-        const html = await fs.readFile(dashboardPath, 'utf8');
-        const acceptEncoding = req.headers['accept-encoding'] || '';
-        const headers = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'Vary': 'Accept-Encoding' };
-        if (acceptEncoding.includes('gzip')) {
-          const compressed = await new Promise((resolve, reject) => zlib.gzip(Buffer.from(html), (e, b) => e ? reject(e) : resolve(b)));
-          res.writeHead(200, { ...headers, 'Content-Encoding': 'gzip' });
-          res.end(compressed);
-        } else {
-          res.writeHead(200, headers);
-          res.end(html);
-        }
-      } catch {
-        res.writeHead(500); res.end('Dashboard file missing');
-      }
-      return;
+      return serveDashboardFile(req, res, 'index.html');
+    }
+
+    const DASHBOARD_ASSETS = {
+      '/styles.css': 'text/css; charset=utf-8',
+      '/app.js': 'text/javascript; charset=utf-8',
+      '/config.js': 'text/javascript; charset=utf-8',
+    };
+    if (DASHBOARD_ASSETS[p]) {
+      return serveDashboardFile(req, res, p.slice(1), DASHBOARD_ASSETS[p]);
     }
 
     // ── SSE ────────────────────────────────────────────────
     if (p === '/events') {
+      if (enforceRateLimit(req, res, 'events', 30, 60_000)) return;
+      if (requireAuth(req, res, url, '/events')) return;
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-transform',
@@ -173,6 +200,9 @@ async function startServer() {
 
     // ── QR Image ───────────────────────────────────────────
     if (p === '/qr-image') {
+      // QR codes are login credentials — never serve them unauthenticated.
+      if (enforceRateLimit(req, res, 'qr-image', 60, 60_000)) return;
+      if (requireAuth(req, res, url, '/qr-image')) return;
       const sessionId = url.searchParams.get('session') || 'default';
       const qr = sessionQRs.get(sessionId);
       if (!qr) { res.writeHead(404); res.end('No QR'); return; }
@@ -186,17 +216,53 @@ async function startServer() {
 
     // ── Health ─────────────────────────────────────────────
     if (p === '/healthz' || p === '/health') {
+      let storage = { backend: 'unknown' };
+      try { storage = await db.health(); } catch {}
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         status: 'ok', bot: config.botName, version: config.version,
         uptime: formatDuration(Date.now() - startTime),
         sessions: getAllSessions().length, plugins: plugins.size,
+        storage,
       }));
+      return;
+    }
+
+    // ── Command registry (dashboard → Commands tab) ────────
+    if (p === '/commands') {
+      if (requireAuth(req, res, url, '/commands')) return;
+      const byCategory = {};
+      const list = [];
+      for (const [name, plugin] of plugins) {
+        const cat = plugin.category || 'misc';
+        const alias = Array.isArray(plugin.alias) ? plugin.alias : plugin.alias ? [plugin.alias] : [];
+        list.push({
+          name,
+          category: cat,
+          description: plugin.description || '',
+          usage: plugin.usage || '',
+          alias,
+          flags: {
+            ownerOnly: !!plugin.ownerOnly,
+            superOwnerOnly: !!plugin.superOwnerOnly,
+            adminOnly: !!plugin.adminOnly,
+            botAdminOnly: !!plugin.botAdminOnly,
+            groupOnly: !!plugin.groupOnly,
+            privateOnly: !!plugin.privateOnly,
+          },
+        });
+        byCategory[cat] = (byCategory[cat] || 0) + 1;
+      }
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ count: list.length, categories: byCategory, commands: list }));
       return;
     }
 
     // ── Stats ──────────────────────────────────────────────
     if (p === '/stats') {
+      // Session ids can embed phone numbers (e.g. tg_923316041183).
+      if (requireAuth(req, res, url, '/stats')) return;
       const cats = getCategories();
       const sessList = getAllSessions();
       const catCounts = {};
@@ -210,20 +276,30 @@ async function startServer() {
       }));
       const ramMB = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
       res.writeHead(200, { 'Content-Type': 'application/json' });
+      let storage = { backend: 'unknown' };
+      try { storage = await db.health(); } catch {}
       res.end(JSON.stringify({
+        bot: config.botName,
+        version: config.version,
+        mode: db.settings.getValue('botMode') || config.botMode,
+        prefix: (arr => (Array.isArray(arr) ? arr : [arr || '.'])[0])(db.settings.getValue('prefix') || config.prefix),
         uptime: formatDuration(Date.now() - startTime),
+        startedAt: startTime,
         plugins: plugins.size,
         groups: Object.keys(db.groups.all()).length,
         sessions: safeSessions,
         connectedSessions: safeSessions.filter(s => s.status === 'connected').length,
         categories: catCounts,
         ram: ramMB,
+        storage,
       }));
       return;
     }
 
     // ── Status — for external frontends (Vercel etc) ──────
     if (p === '/status') {
+      // No secrets here (counts only) — rate limited but public.
+      if (enforceRateLimit(req, res, 'status', 120, 60_000)) return;
       const connected = getAllSessions().filter(s => s.status === 'connected').length;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
@@ -239,6 +315,9 @@ async function startServer() {
 
     // ── Latest pairing code per session (for polling) ─────
     if (p === '/pairing-code') {
+      // A pairing code is a login credential — must be authenticated.
+      if (enforceRateLimit(req, res, 'pairing-code', 60, 60_000)) return;
+      if (requireAuth(req, res, url, '/pairing-code')) return;
       const sid = url.searchParams.get('session') || 'default';
       const code = latestPairingCodes.get(sid);
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -248,6 +327,9 @@ async function startServer() {
 
     // ── Create Session ─────────────────────────────────────
     if (p === '/session/create' && req.method === 'POST') {
+      // Starting a WhatsApp pairing is an admin action.
+      if (enforceRateLimit(req, res, 'session-create', 5, 5 * 60_000)) return;
+      if (requireAuth(req, res, url, '/session/create')) return;
       let body = '';
       req.on('data', d => body += d);
       req.on('end', async () => {
@@ -289,6 +371,8 @@ async function startServer() {
     // ── Delete Session ─────────────────────────────────────
     const delMatch = p.match(/^\/session\/([^/]+)$/);
     if (delMatch && req.method === 'DELETE') {
+      if (enforceRateLimit(req, res, 'session-delete', 10, 60_000)) return;
+      if (requireAuth(req, res, url, '/session/:id')) return;
       try {
         await deleteSession(delMatch[1]);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -334,6 +418,12 @@ async function startServer() {
   server.listen(port, '0.0.0.0', () => {
     logger.info({ port }, '🌐 Dashboard server listening');
     console.log(chalk.green(`\n🌐 Dashboard: http://localhost:${port}/\n`));
+    if (apiTokenIsEphemeral) {
+      console.log(chalk.yellow(
+        '🔑 API is protected by an ephemeral token (SESSION_SECRET is not set).\n' +
+        '   Copy the token from the log line above, or set SESSION_SECRET in .env.\n'
+      ));
+    }
   });
 
   return server;
@@ -415,6 +505,7 @@ async function main() {
       getAllSessions: () => getAllSessions(),
       latestPairingCodes,
       botEvents,
+      sockets: sessions,          // live sockets — needed for a real /broadcast
     });
   } catch (e) {
     logger.warn({ err: e.message }, '📱 Telegram admin bot failed to start');

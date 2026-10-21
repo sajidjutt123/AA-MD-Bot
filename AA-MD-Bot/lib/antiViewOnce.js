@@ -11,6 +11,7 @@ import moment from "moment-timezone";
 import { logger } from "./logger.js";
 import { db } from "./database.js";
 import config from "../config.js";
+import { getPrefixes } from "./helper.js";
 
 // ── Direct-download helper (mirrors reveal.js Step 1) ────────────────────────
 async function dlBufDirect(mediaMsg, type) {
@@ -444,7 +445,7 @@ export async function handleReplyReveal(msg, sock, sessionId) {
 
     // ── Trigger check — must pass at least one ────────────────────────────────
     const voKeyword = db.settings.getValue("voKeyword");
-    const prefix = db.settings.getValue("prefix") || ".";
+    const prefixes = getPrefixes();
     const emojiEnabled = db.settings.getValue("emojiRevealEnabled") !== false; // default ON
 
     // Trigger 1: voword keyword present anywhere in the text
@@ -454,9 +455,8 @@ export async function handleReplyReveal(msg, sock, sessionId) {
 
     // Trigger 2: 4 same emojis — works with OR without prefix
     // e.g. 🔥🔥🔥🔥 OR .🔥🔥🔥🔥 both trigger reveal
-    const textBody = msgText.startsWith(prefix)
-      ? msgText.slice(prefix.length)
-      : msgText;
+    const matchedPrefix = prefixes.find((p) => msgText.startsWith(p)) || "";
+    const textBody = msgText.slice(matchedPrefix.length);
     const isEmojiTrigger =
       emojiEnabled && textBody.length > 0 && hasFourSameEmoji(textBody);
 

@@ -54,7 +54,7 @@ export async function checkAntiFake(update, sock, sessionId) {
 
 export default {
   command: 'antifake',
-  alias: ['fakeno', 'antiflood'],
+  alias: ['fakeno'],
   description: 'Toggle anti-fake number filter — kicks members with invalid phone numbers',
   category: 'admin',
   groupOnly: true,

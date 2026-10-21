@@ -1,12 +1,10 @@
 import axios from 'axios';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateId } from '../../lib/helper.js';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Accept-Language': 'en-US,en;q=0.9', 'Referer': 'https://translate.google.com/' };
@@ -22,7 +20,7 @@ async function toOpus(rawBuf) {
   const tmpOut = path.join(tmpDir, `${id}.ogg`);
   await fs.writeFile(tmpIn, rawBuf);
   try {
-    await execAsync(`ffmpeg -i "${tmpIn}" -c:a libopus -ar 48000 -ac 1 -b:a 64k "${tmpOut}" -y`, { timeout: 20000 });
+    await runFfmpeg(['-y', '-i', tmpIn, '-c:a', 'libopus', '-ar', '48000', '-ac', '1', '-b:a', '64k', tmpOut], 20000);
     const buf = await fs.readFile(tmpOut);
     return buf;
   } finally {

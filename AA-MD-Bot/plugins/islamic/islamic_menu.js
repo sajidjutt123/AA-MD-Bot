@@ -6,6 +6,7 @@
 import { plugins } from '../../lib/pluginLoader.js';
 import config from '../../config.js';
 import { db } from '../../lib/database.js';
+import { getPrefixes } from '../../lib/helper.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -77,14 +78,14 @@ function getGroup(name) {
 
 export default {
   command: 'islamicmenu',
-  alias: ['imenu', 'islamic_menu', 'islamiccmds'],
+  alias: ['imenu', 'islamic_menu', 'islamiccmds', 'islamic'],
   description: 'Show all Islamic commands',
   category: 'islamic',
   usage: '.islamicmenu',
 
   async execute({ sock, jid, msg }) {
     const settings = db.settings.get();
-    const pref = (settings.prefix ?? config.prefix)[0] ?? '.';
+    const pref = getPrefixes()[0];
     const contextInfo = getCtx();
 
     // Collect all Islamic commands

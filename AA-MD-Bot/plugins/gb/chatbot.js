@@ -7,6 +7,7 @@
 
 import axios from 'axios';
 import { db } from '../../lib/database.js';
+import { getPrefixes } from '../../lib/helper.js';
 import { chatAI, addHistory, clearHistory } from '../../lib/aiEngine.js';
 
 // ── Real human system prompt (adapted from user's reference) ──────────────────
@@ -111,8 +112,7 @@ export async function checkChatbotResponse(msg, sock, sessionId) {
   if (!msgText) return;
 
   // ── Prefix guard — don't intercept bot commands ───────────────────────────
-  const prefix = db.settings.getValue('prefix') || '.';
-  if (msgText.startsWith(prefix)) return;
+  if (getPrefixes().some((p) => msgText.startsWith(p))) return;
 
   const senderJid = msg.key.participant || msg.key.remoteJid;
 
@@ -179,7 +179,7 @@ export async function checkChatbotResponse(msg, sock, sessionId) {
 // ── Plugin command interface ───────────────────────────────────────────────────
 export default {
   command: 'chatbot',
-  alias: ['cb', 'groupai', 'dmai'],
+  alias: ['cb', 'groupai'],
   description: 'AI chatbot — groups (when @mentioned) or DMs (all messages)',
   category: 'gb',
 

@@ -2,13 +2,11 @@
 // Converts WhatsApp sticker (WebP) → JPEG using ffmpeg or sharp
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
 import sharp from 'sharp';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMP = path.join(__dirname, '../../temp');
 
@@ -65,9 +63,9 @@ export default {
       // ── Method 1: ffmpeg (handles animated stickers — extracts first frame) ──
       try {
         await fs.writeFile(inp, buffer);
-        await execAsync(
-          `${FFMPEG} -i "${inp}" -vframes 1 -q:v 2 -y "${out}" -loglevel error`,
-          { timeout: 30000 }
+        await runFfmpeg(
+          ['-i', inp, '-vframes', '1', '-q:v', '2', '-y', out],
+          30000
         );
         if (await fs.pathExists(out)) {
           const tmp = await fs.readFile(out);

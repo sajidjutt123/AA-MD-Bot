@@ -25,7 +25,7 @@ A production-ready multi-device WhatsApp bot with 226 plugins, multi-session sup
 - `AA-MD-Bot/lib/database.js` — MongoDB persistence and cache
 - `AA-MD-Bot/lib/mongoAuthState.js` — MongoDB-backed WhatsApp auth state
 - `AA-MD-Bot/session/` — runtime directory; auth is stored in MongoDB
-- `AA-MD-Bot/dashboard.html` — web dashboard UI
+- `AA-MD-Bot/dashboard/` — control panel (index.html + styles.css + app.js), served at `/`
 
 ## Plugin categories
 

@@ -1,4 +1,11 @@
 import { MongoClient } from 'mongodb';
+import {
+  supabaseConfigured,
+  initSupabase,
+  loadCollection as pgLoadCollection,
+  saveCollection as pgSaveCollection,
+  supabaseHealth,
+} from './postgresStore.js';
 
 // ── Connection ────────────────────────────────────────────────────────────────
 // Priority order:
@@ -13,7 +20,9 @@ function getMongoUri() {
 
   const password = process.env.MONGODB_PASSWORD?.trim();
   if (!password || /PASSWORD|change_this/i.test(password)) return null;
-  return `mongodb+srv://a67515346_db_user:${encodeURIComponent(password)}@aa-md-bot.i1j26yw.mongodb.net/?appName=AA-MD-Bot`;
+  const user = process.env.MONGODB_USER || 'a67515346_db_user';
+  const host = process.env.MONGODB_HOST || 'aa-md-bot.i1j26yw.mongodb.net';
+  return `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}/?appName=AA-MD-Bot`;
 }
 
 // Detect Oracle ADB MongoDB API from URI
@@ -109,6 +118,26 @@ async function mongoSaveCollection(name, data) {
   }
 }
 
+// ── Backend selection ────────────────────────────────────────────────────────
+// SUPABASE_DB_URL  → Supabase / PostgreSQL   (preferred when set)
+// MONGODB_URI      → MongoDB                 (Atlas, self-hosted, Oracle ADB)
+// neither          → in-memory only          (data lost on restart)
+export function dbBackend() {
+  if (supabaseConfigured()) return 'postgres';
+  if (getMongoUri()) return 'mongo';
+  return 'memory';
+}
+
+async function loadCollection(name) {
+  if (dbBackend() === 'postgres') return pgLoadCollection(name);
+  return mongoLoadCollection(name);
+}
+
+async function saveCollection(name, data) {
+  if (dbBackend() === 'postgres') return pgSaveCollection(name, data);
+  return mongoSaveCollection(name, data);
+}
+
 // ── Debounced write-through ───────────────────────────────────────────────────
 const saveTimers       = {};
 const _flushInFlight   = new Set();
@@ -121,7 +150,7 @@ async function flushCollection(name) {
   }
   _flushInFlight.add(name);
   try {
-    await mongoSaveCollection(name, cache[name]);
+    await saveCollection(name, cache[name]);
   } finally {
     _flushInFlight.delete(name);
     if (_flushPending.has(name)) {
@@ -147,13 +176,32 @@ function scheduleSave(name) {
 // Immediate save — cancels any pending debounce and writes right now.
 // Call this after critical writes (prefix change, mode, owner add/remove, etc.)
 export async function saveNow(name) {
-  if (!getMongoUri()) return;
+  if (dbBackend() === 'memory') return;
   clearTimeout(saveTimers[name]);
   await flushCollection(name).catch(e => console.error('[DB] saveNow error:', e.message));
 }
 
 // ── Public init: load all data from MongoDB ───────────────────────────────────
 export async function initDatabase() {
+  // ── Supabase / PostgreSQL ────────────────────────────────────────────────
+  if (dbBackend() === 'postgres') {
+    try {
+      await initSupabase();
+      for (const name of COLLECTIONS) {
+        const data = await loadCollection(name);
+        if (data && typeof data === 'object') cache[name] = data;
+      }
+      const stats = COLLECTIONS.map(n => `${n}:${Object.keys(cache[n]).length}`).join('  ');
+      console.log(`[DB] ✅ Supabase (Postgres) loaded — ${stats}`);
+      return;
+    } catch (e) {
+      console.error('[DB] ❌ Supabase/Postgres connection failed:', e.message);
+      console.error('     Check SUPABASE_DB_URL (use the "Session pooler" string) and that `pg` is installed.');
+      console.error('     Falling back to in-memory storage — data will NOT persist.');
+      return;
+    }
+  }
+
   if (!getMongoUri()) {
     console.warn(
       '[DB] ⚠️  No database configured — running in-memory only (ALL data lost on restart)\n' +
@@ -220,7 +268,7 @@ process.on('SIGINT',  async () => { await flushOnExit(); process.exit(0); });
 setInterval(() => {
   // Environment loading can happen after this module is evaluated. Check at
   // execution time so a valid .env is never treated as an in-memory-only run.
-  if (!getMongoUri()) return;
+  if (dbBackend() === 'memory') return;
   for (const name of COLLECTIONS) {
     if (name === 'sessions') continue;
     flushCollection(name).catch(e => console.error('[DB] periodic flush error:', e.message));
@@ -336,6 +384,21 @@ export const db = {
   },
 
   reload: () => reloadDatabase(),
+
+  // Storage diagnostics — used by /healthz and the dashboard Overview tab.
+  async health() {
+    const backend = dbBackend();
+    if (backend === 'postgres') return { backend, ...(await supabaseHealth()) };
+    if (backend === 'mongo') {
+      try {
+        const mdb = await getDb();
+        return { backend, enabled: true, ok: !!mdb };
+      } catch (e) {
+        return { backend, enabled: true, ok: false, error: e.message };
+      }
+    }
+    return { backend, enabled: false };
+  },
 
   notes: {
     get: (jid) => cache.notes[jid] || {},

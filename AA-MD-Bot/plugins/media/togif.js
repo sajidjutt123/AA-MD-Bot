@@ -4,13 +4,11 @@
 // ============================================
 
 import { downloadContentFromMessage } from '@whiskeysockets/baileys';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMP = path.join(__dirname, '../../temp');
 fs.ensureDirSync(TEMP);
@@ -55,7 +53,7 @@ export default {
       const outFile = path.join(TEMP, `togif_out_${ts}.gif`);
 
       await fs.writeFile(inFile, buf);
-      await execAsync(`ffmpeg -y -i "${inFile}" -vf "fps=10,scale=320:-1:flags=lanczos" -loop 0 "${outFile}" 2>&1`);
+      await runFfmpeg(['-y', '-i', inFile, '-vf', 'fps=10,scale=320:-1:flags=lanczos', '-loop', '0', outFile]);
 
       const gifBuf = await fs.readFile(outFile);
       await sock.sendMessage(jid, {

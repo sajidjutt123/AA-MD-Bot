@@ -14,13 +14,7 @@ function isPrime(n) {
 
 export default {
   command: 'calc',
-  alias: [
-    'sqrt','squareroot','power','pow','exponent','factorial',
-    'average','avg','mean','percentage','percent','pct',
-    'fibonacci','fib','prime','isprime','convert','unitconvert',
-    'compound','interest','age','agecalc','hexdec','hex2dec',
-    'dechex','dec2hex','log','logarithm','gcd','lcm','random','rand',
-  ],
+  alias: ['sqrt',  'squareroot',  'power',  'pow',  'exponent',  'factorial',  'average',  'avg',  'mean',  'percentage',  'percent',  'pct',  'fibonacci',  'fib',  'prime',  'isprime',  'unitconvert',  'compound',  'interest',  'age',  'agecalc',  'hexdec',  'hex2dec',  'dechex',  'dec2hex',  'log',  'logarithm',  'gcd',  'lcm',  'random',  'rand',  'math',  'calculate'],
   description: 'Full math toolkit — calculator, converters, number theory',
   category: 'tools',
 

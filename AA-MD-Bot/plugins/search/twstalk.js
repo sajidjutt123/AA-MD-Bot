@@ -14,7 +14,7 @@ function fmt(n) {
 
 export default {
   command: 'twstalk',
-  alias: ['twitterstalk', 'twitterinfo', 'xstalk', 'xinfo', 'twitter'],
+  alias: ['twitterstalk', 'twitterinfo', 'xstalk', 'xinfo'],
   description: 'Look up a Twitter / X profile — followers, tweets, bio',
   category: 'search',
 

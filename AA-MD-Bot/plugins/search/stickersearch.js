@@ -12,7 +12,18 @@ export default {
     }
     await react('🧧');
     try {
-      const tenorApiKey = process.env.TENOR_API_KEY || config?.apiKeys?.tenor || 'AIzaSyCttzF12xPCE1V6QGH3m3Ts5nnENy63Cno';
+      // The published key that used to live here was public — set your own
+      // TENOR_API_KEY (free at https://developers.google.com/tenor).
+      const tenorApiKey = process.env.TENOR_API_KEY || config?.apiKeys?.tenor;
+      if (!tenorApiKey) {
+        await react('❔');
+        return reply(
+          `🔑 *Sticker search needs an API key.*\n\n` +
+          `Add this line to *.env* and restart:\n` +
+          `TENOR_API_KEY=your_key_here\n\n` +
+          `Get a free key at https://developers.google.com/tenor`
+        );
+      }
       const gif = await axios.get(
         `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(text)}&key=${tenorApiKey}&client_key=aa_md_bot&limit=8&media_filter=gif`,
         { timeout: 10000 }

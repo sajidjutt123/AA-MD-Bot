@@ -2,7 +2,7 @@ import axios from 'axios';
 
 export default {
   command: 'quote',
-  alias: ['inspire', 'motivation'],
+  alias: ['motivation'],
   description: 'Get an inspirational quote',
   category: 'fun',
   async execute({ reply }) {

@@ -1,5 +1,6 @@
 import config from '../../config.js';
 import { db } from '../../lib/database.js';
+import { getPrefixes } from '../../lib/helper.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -62,7 +63,7 @@ export default {
 
   async execute({ sock, jid, msg }) {
     const s    = db.settings.get();
-    const pref = (s.prefix ?? config.prefix)[0] ?? '.';
+    const pref = getPrefixes()[0];
 
     const on  = '✅ ON ';
     const off = '❌ OFF';
@@ -106,10 +107,9 @@ export default {
       `▸ *${pref}setnewsletter* <jid>  — View Channel button\n\n` +
 
       `👥 *USER MANAGEMENT*\n${SDIV}\n` +
-      `▸ *${pref}ban* @user     — ban user\n` +
-      `▸ *${pref}unban* @user   — unban user\n` +
-      `▸ *${pref}block* @user   — block user\n` +
-      `▸ *${pref}broadcast* msg — broadcast\n\n` +
+      `▸ *${pref}banuser* <number> — ban a user from the bot\n` +
+      `▸ *${pref}botban list*        — list banned users\n` +
+      `▸ *${pref}broadcast* msg      — broadcast to all sessions\n\n` +
 
       `${DIV}\n` +
       `> 🌐 ${CHANNEL_URL}\n` +

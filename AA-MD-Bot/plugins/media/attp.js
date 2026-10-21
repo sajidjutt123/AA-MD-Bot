@@ -4,15 +4,13 @@
 // No external API dependency
 // ============================================
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { Sticker, StickerTypes } from 'wa-sticker-formatter';
 import config from '../../config.js';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMP = path.join(__dirname, '../../temp');
 
@@ -109,11 +107,11 @@ async function generateLocalAttp(text) {
     // Combine PNGs → animated GIF with palette optimisation
     const gifPath = path.join(TEMP, `attp_${id}.gif`);
     const pattern = path.join(TEMP, `attp_${id}_%03d.png`);
-    await execAsync(
-      `ffmpeg -y -framerate ${FPS} -i "${pattern}" ` +
-      `-vf "fps=${FPS},scale=${W}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer" ` +
-      `-loop 0 "${gifPath}" -loglevel error`,
-      { timeout: 60000 }
+    await runFfmpeg(
+      ['-y', '-framerate', String(FPS), '-i', pattern,
+       '-vf', `fps=${FPS},scale=${W}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer`,
+       '-loop', '0', gifPath],
+      60000
     );
 
     if (!(await fs.pathExists(gifPath))) return null;

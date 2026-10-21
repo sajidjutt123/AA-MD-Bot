@@ -4,7 +4,7 @@ import axios from 'axios';
 
 export default {
   command: 'geoip',
-  alias: ['iplocation', 'ipinfo', 'iplookup', 'ipdekho'],
+  alias: ['iplocation', 'ipdekho'],
   description: 'Look up the exact location and map for an IP address',
   category: 'tools',
 

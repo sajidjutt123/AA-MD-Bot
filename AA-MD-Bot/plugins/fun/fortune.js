@@ -15,7 +15,7 @@ const fortunes = [
 
 export default {
   command: 'fortune',
-  alias: ['horoscope', 'lucky'],
+  alias: ['lucky'],
   description: 'Get your fortune for today',
   category: 'fun',
   async execute({ reply }) {

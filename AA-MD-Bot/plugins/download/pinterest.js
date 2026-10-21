@@ -58,7 +58,7 @@ async function downloadBuf(url) {
 
 export default {
   command: 'pinterest',
-  alias: ['pin', 'pindl', 'pindown'],
+  alias: ['pindl', 'pindown'],
   description: 'Download Pinterest image or video',
   category: 'download',
 

@@ -55,7 +55,7 @@ async function tryPicuki(username) {
 
 export default {
   command: 'igstalk',
-  alias: ['igprofile', 'instagram', 'iginfo'],
+  alias: ['igprofile', 'iginfo'],
   description: 'Look up an Instagram profile',
   category: 'search',
 

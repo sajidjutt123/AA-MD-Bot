@@ -6,7 +6,7 @@ const DC = 'https://apis.davidcyriltech.my.id';
 
 export default {
   command: 'ytstalk',
-  alias: ['ytchannel', 'youtubestalk', 'ytinfo', 'youtubeinfo', 'ytprofile'],
+  alias: ['ytchannel', 'youtubestalk', 'youtubeinfo', 'ytprofile'],
   description: 'Look up a YouTube channel — subscribers, videos, description',
   category: 'search',
 

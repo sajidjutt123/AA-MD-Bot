@@ -3,7 +3,7 @@ import { downloadMediaMessage } from '@whiskeysockets/baileys';
 
 export default {
   command: 'steal',
-  alias: ['takesticker', 'getsticker', 'ss'],
+  alias: ['takesticker', 'getsticker'],
   description: 'Steal a sticker and add bot pack info',
   category: 'media',
   usage: '.steal [pack name] (reply to sticker)',

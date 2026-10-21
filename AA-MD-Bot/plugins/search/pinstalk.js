@@ -6,7 +6,7 @@ const DC = 'https://apis.davidcyriltech.my.id';
 
 export default {
   command: 'pinstalk',
-  alias: ['pinterestalk', 'pinterestinfo', 'pininfo', 'pinterest'],
+  alias: ['pinterestalk', 'pinterestinfo', 'pininfo'],
   description: 'Look up a Pinterest profile — boards, description',
   category: 'search',
 

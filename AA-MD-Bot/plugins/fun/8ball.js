@@ -10,7 +10,7 @@ const responses = [
 
 export default {
   command: '8ball',
-  alias: ['magic8', 'ask'],
+  alias: ['magic8'],
   description: 'Ask the magic 8-ball a question',
   category: 'fun',
   async execute({ reply, text }) {

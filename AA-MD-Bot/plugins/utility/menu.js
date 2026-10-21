@@ -8,6 +8,7 @@
 import { plugins } from "../../lib/pluginLoader.js";
 import config from "../../config.js";
 import { db } from "../../lib/database.js";
+import { getPrefixes } from "../../lib/helper.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -210,7 +211,7 @@ export default {
   async execute({ sock, jid, msg, isOwner, args, senderJid }) {
     const settings = db.settings.get();
     const pushName = msg.pushName || "User";
-    const pref = config.prefix?.[0] ?? ".";
+    const pref = getPrefixes()[0];
     const mode = (settings.botMode ?? config.botMode ?? "public").toUpperCase();
     const isSuperOwnerUser =
       senderJid?.split("@")[0]?.split(":")[0] === String(config.superOwner);

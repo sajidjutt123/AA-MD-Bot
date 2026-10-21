@@ -226,7 +226,7 @@ async function deleteSession(sess) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default {
   command: 'tempmail',
-  alias: ['tm', 'disposable', 'fakemail', 'tmpmail'],
+  alias: ['tm', 'disposable', 'fakemail', 'tmpmail', 'tmail'],
   description: 'Temporary disposable email — inbox check + email read',
   category: 'tools',
 

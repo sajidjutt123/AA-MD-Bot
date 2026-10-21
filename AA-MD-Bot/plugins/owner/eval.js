@@ -1,6 +1,6 @@
 export default {
   command: 'eval',
-  alias: ['exec', '>'],
+  alias: ['>'],
   description: 'Evaluate JavaScript code (owner only)',
   category: 'owner',
   ownerOnly: true,

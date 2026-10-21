@@ -4,11 +4,40 @@ import crypto from 'crypto';
 import moment from 'moment-timezone';
 import { fileURLToPath } from 'url';
 import config from '../config.js';
+import { db } from './database.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// ── Prefix resolution ────────────────────────────────────────────────────────
+// Single source of truth: db.settings.prefix (written by `.setprefix`), with
+// config.prefix as the bootstrap default. Accepts both shapes that exist in
+// the wild: an array `['.', '!']` and a bare string `'.'`.
+function normalizePrefixes(value) {
+  if (Array.isArray(value)) {
+    return value.filter(p => typeof p === 'string' && p.length > 0);
+  }
+  if (typeof value === 'string' && value.length > 0) return [value];
+  return null;
+}
+
+export function getPrefixes() {
+  let stored = null;
+  try {
+    stored = db.settings.getValue('prefix');
+  } catch {
+    // Database not ready yet (very early boot) — fall back to config.
+  }
+  const list =
+    normalizePrefixes(stored) ||
+    normalizePrefixes(config.prefix) ||
+    ['.'];
+  // Longest first so a multi-char prefix wins over a 1-char one.
+  return [...new Set(list)].sort((a, b) => b.length - a.length);
+}
+
 export function getPrefix(text) {
-  for (const p of config.prefix) {
+  if (typeof text !== 'string') return null;
+  for (const p of getPrefixes()) {
     if (text.startsWith(p)) return p;
   }
   return null;
@@ -92,5 +121,5 @@ export function getBestThumb(info) {
   return null;
 }
 
-export default { getPrefix, parseCommand, formatDuration, formatBytes, getTime, getDate,
+export default { getPrefix, getPrefixes, parseCommand, formatDuration, formatBytes, getTime, getDate,
   randomChoice, randomInt, sleep, isGroup, generateId, tempFile, cleanTemp, getBuffer, getBestThumb };

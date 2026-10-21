@@ -1,13 +1,25 @@
+// Owner identity comes from the environment (see .env.example) so that a
+// fork does not inherit someone else's numbers. The literals below are only
+// bootstrap defaults for a fresh checkout.
+function envList(name, fallback) {
+  const raw = (process.env[name] || '').trim();
+  if (!raw) return fallback;
+  return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+const OWNER_NUMBERS = envList('OWNER_NUMBER', ['923316041183']);
+const SUPER_OWNER    = (process.env.SUPER_OWNER || '923346741532').replace(/\D/g, '');
+
 const config = {
   botName: 'AA MD Bot',
   developer: 'Ahsan Ali Wadani',
   ownerName: 'Ahsan Ali',
   brand: 'AA Mods',
   version: '3.0.0',
-  ownerNumber: ['923316041183'],
-  superOwner: '923346741532',
-  channelLink: 'https://whatsapp.com/channel/0029Vb8Yk2LL2AU78HliE617',
-  newsletterJid: '120363428609538858@newsletter',
+  ownerNumber: OWNER_NUMBERS,
+  superOwner: SUPER_OWNER,
+  channelLink: process.env.CHANNEL_LINK || 'https://whatsapp.com/channel/0029Vb8Yk2LL2AU78HliE617',
+  newsletterJid: process.env.NEWSLETTER_JID || '120363428609538858@newsletter',
   newsletterName: 'AA MD Bot',
   prefix: ['.'],
   altPrefixes: [],

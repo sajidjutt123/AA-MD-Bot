@@ -7,6 +7,14 @@
 
 import { proto, initAuthCreds, BufferJSON } from '@whiskeysockets/baileys';
 import { getDb } from './database.js';
+import {
+  supabaseConfigured,
+  getAuthCreds, setAuthCreds, getAuthKeys, setAuthKeys, deleteAuth,
+} from './postgresStore.js';
+
+// Storage backend: Supabase/Postgres when SUPABASE_DB_URL is set, otherwise
+// MongoDB. Both paths expose the same three operations used below.
+const useSupabase = () => supabaseConfigured();
 
 // ── BufferJSON helpers ────────────────────────────────────────────────────────
 function encodeVal(v) {
@@ -32,8 +40,6 @@ function scheduleKeySave(sessionId, type) {
     const typeData = _keyCache[sessionId]?.[type];
     if (!typeData) return;
     try {
-      const mdb = await getDb();
-      if (!mdb) return;
       // Encode values (Buffer → base64 etc.)
       const encoded = {};
       for (const [id, val] of Object.entries(typeData)) {
@@ -41,6 +47,14 @@ function scheduleKeySave(sessionId, type) {
           encoded[id.replace(/\./g, '\uFF0E')] = encodeVal(val); // replace . (invalid MongoDB key)
         }
       }
+
+      if (useSupabase()) {
+        await setAuthKeys(sessionId, type, encoded);
+        return;
+      }
+
+      const mdb = await getDb();
+      if (!mdb) return;
       const docId = `${sessionId}:${type}`;
       await mdb.collection('auth_keys').replaceOne(
         { _id: docId },
@@ -56,6 +70,10 @@ function scheduleKeySave(sessionId, type) {
 // ── Public: check if a session has valid auth in MongoDB ──────────────────────
 export async function sessionHasAuth(sessionId) {
   try {
+    if (useSupabase()) {
+      const creds = await getAuthCreds(sessionId);
+      return !!(creds && typeof creds === 'object' && (creds.noiseKey || creds.me));
+    }
     const mdb = await getDb();
     if (!mdb) return false;
     const doc = await mdb.collection('auth_creds').findOne({ _id: sessionId });
@@ -70,11 +88,18 @@ export async function sessionHasAuth(sessionId) {
 export async function useMongoAuthState(sessionId) {
   if (!_keyCache[sessionId]) _keyCache[sessionId] = {};
 
-  const mdb = await getDb();
+  const mdb = useSupabase() ? null : await getDb();
 
   // ── Load credentials ─────────────────────────────────────────────────────
   let creds;
-  if (mdb) {
+  if (useSupabase()) {
+    try {
+      const rawCreds = await getAuthCreds(sessionId);
+      creds = rawCreds ? decodeVal(rawCreds) : initAuthCreds();
+    } catch {
+      creds = initAuthCreds();
+    }
+  } else if (mdb) {
     try {
       const rawDoc = await mdb.collection('auth_creds').findOne({ _id: sessionId });
       if (rawDoc) {
@@ -97,7 +122,23 @@ export async function useMongoAuthState(sessionId) {
       // Lazy-load entire key type from MongoDB on first access
       if (!_keyCache[sessionId][type]) {
         _keyCache[sessionId][type] = {};
-        if (mdb) {
+        if (useSupabase()) {
+          try {
+            const stored = await getAuthKeys(sessionId, type);
+            if (stored && typeof stored === 'object') {
+              for (const [encodedId, val] of Object.entries(stored)) {
+                const id = encodedId.replace(/\uFF0E/g, '.');
+                let decoded = decodeVal(val);
+                if (type === 'app-state-sync-key' && decoded) {
+                  try { decoded = proto.Message.AppStateSyncKeyData.fromObject(decoded); } catch {}
+                }
+                _keyCache[sessionId][type][id] = decoded;
+              }
+            }
+          } catch (e) {
+            console.error(`[AuthState] key load failed (${sessionId}/${type}):`, e.message);
+          }
+        } else if (mdb) {
           try {
             const docId = `${sessionId}:${type}`;
             const doc = await mdb.collection('auth_keys').findOne({ _id: docId });
@@ -142,9 +183,13 @@ export async function useMongoAuthState(sessionId) {
 
   // ── saveCreds — called by Baileys on creds.update ─────────────────────────
   const saveCreds = async () => {
-    if (!mdb) return;
+    if (!mdb && !useSupabase()) return;
     try {
       const encoded = encodeVal(creds);
+      if (useSupabase()) {
+        await setAuthCreds(sessionId, encoded);
+        return;
+      }
       await mdb.collection('auth_creds').replaceOne(
         { _id: sessionId },
         { _id: sessionId, ...encoded },
@@ -171,8 +216,12 @@ export async function deleteMongoAuthState(sessionId) {
     }
   }
 
-  // Delete from MongoDB
+  // Delete from the active backend
   try {
+    if (useSupabase()) {
+      await deleteAuth(sessionId);
+      return;
+    }
     const mdb = await getDb();
     if (!mdb) return;
     await mdb.collection('auth_creds').deleteOne({ _id: sessionId });

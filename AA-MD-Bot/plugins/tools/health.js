@@ -37,11 +37,7 @@ const FOOD_CALS = {
 
 export default {
   command: 'bmi',
-  alias: [
-    'bmicalc','calories','calorie','food','water','hydration',
-    'heartrate','hr','maxhr','workout','wod','exercise',
-    'stretch','yoga','yogapose','bodyfat','bfp',
-  ],
+  alias: ['bmicalc', 'calories', 'calorie', 'water', 'hydration', 'heartrate', 'hr', 'maxhr', 'workout', 'wod', 'exercise', 'stretch', 'yoga', 'yogapose', 'bodyfat', 'bfp'],
   description: 'Health & fitness — BMI, calories, water, heart rate, workouts, yoga',
   category: 'tools',
 

@@ -148,7 +148,7 @@ function extractQuotedImage(msg, quoted) {
 
 export default {
   command: 'aiedit',
-  alias: ['aiimage', 'editimage', 'imageedit', 'imgai', 'nanobanana'],
+  alias: ['editimage', 'imageedit', 'imgai', 'nanobanana'],
   description: 'Edit any image with an AI prompt (reply + describe the change)',
   category: 'media',
   async execute({ sock, msg, jid, react, reply, quoted, args, text, prefix }) {

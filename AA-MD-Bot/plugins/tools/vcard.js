@@ -2,7 +2,7 @@
 // Generates a .vcf contact card and sends as document
 export default {
   command: 'vcard',
-  alias: ['contact', 'vcf', 'makecontact'],
+  alias: ['vcf', 'makecontact'],
   description: 'Generate a contact card (vCard .vcf)',
   category: 'tools',
 

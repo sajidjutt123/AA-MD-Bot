@@ -51,6 +51,7 @@
     "mumaker": "^2.0.0",
     "node-cache": "^5.1.2",
     "node-telegram-bot-api": "^1.2.0",
+    "pg": "^8.13.1",
     "pino": "^9.4.0",
     "play-dl": "^1.9.7",
     "qrcode": "^1.5.4",

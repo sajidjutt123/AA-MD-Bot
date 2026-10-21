@@ -1,12 +1,10 @@
-import { exec } from 'child_process';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateId } from '../../lib/helper.js';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default {
@@ -39,9 +37,9 @@ export default {
       }, 'buffer', {}, { reuploadRequest: sock.updateMediaMessage });
       await fs.writeFile(tmpIn, buffer);
 
-      await execAsync(
-        `ffmpeg -i "${tmpIn}" -c:a libopus -b:a 64k -ar 48000 -ac 1 "${tmpOut}" -y`,
-        { timeout: 30000 }
+      await runFfmpeg(
+        ['-y', '-i', tmpIn, '-c:a', 'libopus', '-b:a', '64k', '-ar', '48000', '-ac', '1', tmpOut],
+        30000
       );
 
       const audioBuf = await fs.readFile(tmpOut);

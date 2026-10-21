@@ -1,12 +1,10 @@
-import { exec } from 'child_process';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateId } from '../../lib/helper.js';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tmpDir = path.join(__dirname, '../../temp');
 
@@ -35,7 +33,7 @@ export default {
       const outputPath = path.join(tmpDir, `${id}_blur.jpg`);
 
       await fs.writeFile(inputPath, buffer);
-      await execAsync(`ffmpeg -i "${inputPath}" -vf "boxblur=${blurLevel}:${blurLevel}" "${outputPath}"`, { timeout: 15000 });
+      await runFfmpeg(['-y', '-i', inputPath, '-vf', `boxblur=${blurLevel}:${blurLevel}`, outputPath], 15000);
 
       const resultBuffer = await fs.readFile(outputPath);
       await sock.sendMessage(jid, { image: resultBuffer, caption: `🌫️ Blurred (Level ${blurLevel})` }, { quoted: msg });

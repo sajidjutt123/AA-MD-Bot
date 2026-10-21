@@ -11,6 +11,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white" />
   <img src="https://img.shields.io/badge/Platform-WhatsApp-25D366?logo=whatsapp&logoColor=white" />
+  <img src="https://img.shields.io/badge/DB-Supabase-3ECF8E?logo=supabase&logoColor=white" />
   <img src="https://img.shields.io/badge/DB-MongoDB-47A248?logo=mongodb&logoColor=white" />
   <img src="https://img.shields.io/badge/Deploy-Oracle_Cloud_Free-F80000?logo=oracle&logoColor=white" />
 </p>
@@ -55,6 +56,62 @@ MongoDB URI: mongodb://aa_bot_user:xxxxx@127.0.0.1:27017/aa_md_bot
 3. **Get Pairing Code** click karo
 4. WhatsApp → **Settings → Linked Devices → Link a Device → Link with phone number**
 5. 8-digit code enter karo — ho gaya ✅
+
+---
+
+## 🖥 Dashboard (control panel)
+
+The bot serves a full web panel from `dashboard/` — same files run on Vercel.
+
+```
+http://YOUR_IP:5000/          # panel, served by the bot
+http://YOUR_IP:5000/?demo=1   # UI preview with sample data, no bot needed
+```
+
+| View | What it does |
+|---|---|
+| **Overview** | Live status, uptime, sessions, command count, RAM, storage health, live event log |
+| **Sessions** | Every WhatsApp session with status + disconnect button |
+| **Connect** | Start a session, QR (auto-refreshing) or pairing code, copy code |
+| **Commands** | All commands with category chips, search by name/alias/description, flags |
+| **Settings** | API base + token, backend info, connection diagnostics |
+
+It talks to the same token-guarded API you would `curl` (`/stats`, `/commands`,
+`/events`, `/session/create`, …), so the panel never needs shell access to the bot.
+
+**Login:** token = `SESSION_SECRET` from `.env`. If `SESSION_SECRET` is missing or
+shorter than 16 characters, the bot prints an ephemeral token at boot.
+
+**Deploy the panel to Vercel:** root directory `AA-MD-Bot/dashboard`, no build step —
+then enter the bot's URL and token on the login screen. Full walkthrough (Supabase +
+always-on bot + Vercel): [`deploy/SUPABASE-VERCEL.md`](deploy/SUPABASE-VERCEL.md).
+
+---
+
+## ☁️ 24/7 Uptime — Supabase + Vercel
+
+Vercel is serverless: it cannot hold the WhatsApp WebSocket, so **run the bot on an
+always-on host and put the dashboard on Vercel**:
+
+```
+Vercel (dashboard, static) ──HTTPS + token──▶ Bot process (PM2 / Railway / Fly / VM)
+                                                   │
+                                                   ▼
+                                          Supabase Postgres
+                                    (settings + WhatsApp auth keys)
+```
+
+1. **Supabase** — run [`supabase/schema.sql`](supabase/schema.sql) in the SQL editor,
+   copy the *Session pooler* connection string into `SUPABASE_DB_URL`.
+2. **Bot** — start it on the VM (`deploy/setup.sh`) or any always-on host; pair once.
+   Session keys land in Supabase, so restarts never re-ask for a QR.
+3. **Dashboard** — deploy `dashboard/` to Vercel, add that domain to
+   `DASHBOARD_ORIGINS` on the bot, log in with `SESSION_SECRET`.
+
+Without `SUPABASE_DB_URL` the bot still runs, but falls back to MongoDB, and then to
+in-memory storage (data lost on restart) — the panel warns you when that happens.
+
+**Full guide:** [`deploy/SUPABASE-VERCEL.md`](deploy/SUPABASE-VERCEL.md)
 
 ---
 
@@ -135,6 +192,8 @@ pm2 restart aa-md-bot
 | Problem | Fix |
 |---|---|
 | Dashboard nahi khulta | `pm2 logs aa-md-bot --err` |
+| "not persistent" warning | `.env` mein `SUPABASE_DB_URL` ya `MONGODB_URI` set karo |
+| Dashboard: invalid token | Token = `SESSION_SECRET` (logs mein ephemeral token bhi milta hai) |
 | `MongoDB connection failed` | `sudo systemctl restart mongod` |
 | Port 5000 reachable nahi | Oracle Console → VCN → Security List → port 5000 add karo |
 | YouTube bot-check error | `cookies.txt` file banao — `cookies.txt.example` dekho |
@@ -144,6 +203,6 @@ pm2 restart aa-md-bot
 
 ## Stack
 
-[Baileys](https://github.com/WhiskeySockets/Baileys) · [MongoDB](https://www.mongodb.com/) · [yt-dlp](https://github.com/yt-dlp/yt-dlp) · [ffmpeg](https://ffmpeg.org/) · [PM2](https://pm2.keymetrics.io/)
+[Baileys](https://github.com/WhiskeySockets/Baileys) · [Supabase](https://supabase.com/) · [MongoDB](https://www.mongodb.com/) · [yt-dlp](https://github.com/yt-dlp/yt-dlp) · [ffmpeg](https://ffmpeg.org/) · [PM2](https://pm2.keymetrics.io/)
 
 **Developer:** Ahsan Ali Wadani — AA Mods

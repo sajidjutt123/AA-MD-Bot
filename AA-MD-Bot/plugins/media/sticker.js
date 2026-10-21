@@ -1,13 +1,11 @@
-import { exec } from 'child_process';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateId } from '../../lib/helper.js';
 import config from '../../config.js';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tmpDir = path.join(__dirname, '../../temp');
 
@@ -52,9 +50,9 @@ export default {
       await fs.writeFile(inputPath, buffer);
 
       if (isAnimated) {
-        await execAsync(`ffmpeg -i "${inputPath}" -vf "fps=15,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=00000000" -loop 0 -preset default -an -vsync 0 -t 5 "${outputPath}"`, { timeout: 30000 });
+        await runFfmpeg(['-y', '-i', inputPath, '-vf', 'fps=15,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=00000000', '-loop', '0', '-preset', 'default', '-an', '-vsync', '0', '-t', '5', outputPath], 30000);
       } else {
-        await execAsync(`ffmpeg -i "${inputPath}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=00000000" "${outputPath}"`, { timeout: 15000 });
+        await runFfmpeg(['-y', '-i', inputPath, '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=00000000', outputPath], 15000);
       }
 
       const stickerBuffer = await fs.readFile(outputPath);

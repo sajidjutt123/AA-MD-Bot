@@ -38,8 +38,8 @@ function getMediaInfo(msgContent) {
 }
 
 export default {
-  command: 'tourl',
-  alias: ['catbox', 'imgtourl', 'imgurl', 'geturl', 'upload', 'uploadfile'],
+  command: 'catbox',
+  alias: ['catbox', 'imgtourl', 'imgurl', 'uploadfile'],
   description: 'Upload a media file to Catbox.moe and get a shareable URL',
   category: 'tools',
 

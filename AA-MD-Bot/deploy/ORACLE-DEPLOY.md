@@ -68,12 +68,32 @@ MongoDB URI: mongodb://aa_bot_user:xxxxx@127.0.0.1:27017/aa_md_bot
 
 VM1 ka setup complete hone ke baad VM2/VM3 par:
 
-**Step 1 — VM1 par MongoDB ko network access do:**
+**Step 1 — VM1 par MongoDB ko network access do (sirf private subnet):**
+
+> ⚠️ **`0.0.0.0` ka matlab public internet bhi ho sakta hai.** Port 27017 ko
+> Oracle Security List mein *kabhi* `0.0.0.0/0` se open mat karo. Neeche diya
+> firewall rule MongoDB ko sirf VCN ke private range tak seemit karta hai —
+> ise **pehle** chalao, phir bindIp badlo.
+
 ```bash
-# VM1 par chalao:
+# VM1 par chalao — pehle host firewall, sirf private subnet ko allow:
+# (apna VCN CIDR daalo, default Oracle VCN = 10.0.0.0/16)
+VCN_CIDR=10.0.0.0/16
+sudo iptables -I INPUT 1 -p tcp --dport 27017 -s "$VCN_CIDR" -j ACCEPT
+sudo iptables -I INPUT 2 -p tcp --dport 27017 -j DROP
+sudo netfilter-persistent save
+
+# phir bindIp update karo:
 sudo sed -i 's/bindIp: 127.0.0.1/bindIp: 127.0.0.1,0.0.0.0/' /etc/mongod.conf
 sudo systemctl restart mongod
+
+# verify: bahar se 27017 band hona chahiye
+# (kisi doosre machine se) nc -vz VM1_PUBLIC_IP 27017   → timeout/refused
 ```
+
+MongoDB user ke paas password-auth pehle se hai (`setup.sh` set karta hai), lekin
+network-level block hi asli suraksha hai — MongoDB ka auth alone internet par
+expose karne ke liye kaafi nahi hai.
 
 **Step 2 — VM1 ki `.env` se MONGODB_URI copy karo:**
 ```bash
@@ -201,7 +221,7 @@ pm2 restart aa-md-bot
 | Dashboard load nahi ho raha | `pm2 logs aa-md-bot --err` dekho |
 | `MongoDB connection failed` | `sudo systemctl status mongod` — start karo |
 | Port 5000 reachable nahi | Oracle Console → VCN → Security List → port 5000 add karo |
-| VM2/VM3 DB connect nahi | VM1 par `bindIp` check karo (`0.0.0.0`), port 27017 private network mein open karo |
+| VM2/VM3 DB connect nahi | VM1 par `bindIp` check karo (`0.0.0.0`), aur iptables rule sirf VCN CIDR ke liye ho — port 27017 public internet par kabhi open na karo |
 | `pm2 not found` | `source ~/.bashrc` chalao phir dobara try karo |
 | yt-dlp outdated | `sudo yt-dlp -U` |
 | Bot crash on start | `.env` mein `MONGODB_URI` check karo — sahi hai? |

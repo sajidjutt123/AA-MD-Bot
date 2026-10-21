@@ -1,14 +1,12 @@
 // AA MD Bot — Sticker to MP4 Video
 // Converts a replied WebP sticker to MP4 using ffmpeg
 
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { downloadContentFromMessage } from '@whiskeysockets/baileys';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEMP = path.join(__dirname, '../../temp');
 
@@ -41,9 +39,12 @@ export default {
       const stickerBuffer = Buffer.concat(chunks);
       await fs.writeFile(inp, stickerBuffer);
 
-      await execAsync(
-        `ffmpeg -i "${inp}" -vf "scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2" -c:v libx264 -preset fast -crf 26 -pix_fmt yuv420p -an -movflags +faststart -y "${out}" -loglevel error`,
-        { timeout: 60000 }
+      await runFfmpeg(
+        ['-i', inp,
+         '-vf', 'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2',
+         '-c:v', 'libx264', '-preset', 'fast', '-crf', '26', '-pix_fmt', 'yuv420p',
+         '-an', '-movflags', '+faststart', '-y', out],
+        60000
       );
 
       if (!await fs.pathExists(out)) throw new Error('Conversion failed — output not created');

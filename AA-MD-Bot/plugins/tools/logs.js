@@ -7,7 +7,7 @@ const logsDir = path.join(__dirname, '../../logs');
 
 export default {
   command: 'logs',
-  alias: ['log', 'viewlogs'],
+  alias: ['viewlogs'],
   description: 'View recent bot logs',
   category: 'tools',
   ownerOnly: true,

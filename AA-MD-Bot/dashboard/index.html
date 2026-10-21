@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AA MD Bot — Control Panel</title>
+    <meta name="theme-color" content="#25d366" />
+    <meta name="description" content="Control panel for AA MD Bot — sessions, pairing, commands and storage." />
+    <link rel="icon" type="image/webp" href="/favicon.webp" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <!-- ── Auth gate ─────────────────────────────────────────────── -->
+    <section id="gate" class="gate" hidden>
+      <div class="gate-card">
+        <img src="/logo.webp" alt="" class="gate-logo" onerror="this.style.display='none'" />
+        <h1>AA MD <span>Bot</span></h1>
+        <p class="muted">Connect the panel to your bot instance.</p>
+
+        <label class="field">
+          <span>Bot URL</span>
+          <input id="gate-base" type="url" placeholder="https://your-bot.fly.dev" autocomplete="off" spellcheck="false" />
+        </label>
+
+        <label class="field">
+          <span>API token</span>
+          <input id="gate-token" type="password" placeholder="SESSION_SECRET from .env" autocomplete="off" spellcheck="false" />
+        </label>
+
+        <button id="gate-connect" class="btn btn-primary">Connect</button>
+        <p id="gate-error" class="gate-error" hidden></p>
+
+        <p class="hint">
+          The token is your <code>SESSION_SECRET</code>. It is stored only in this
+          browser (<code>localStorage</code>) and sent as a bearer token.
+        </p>
+      </div>
+    </section>
+
+    <!-- ── App shell ─────────────────────────────────────────────── -->
+    <div id="app" class="shell" hidden>
+      <aside class="sidebar">
+        <div class="brand">
+          <img src="/logo.webp" alt="" onerror="this.style.display='none'" />
+          <div>
+            <strong>AA MD Bot</strong>
+            <small id="brand-version">v3.0.0</small>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item is-active" data-view="overview">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            Overview
+          </button>
+          <button class="nav-item" data-view="sessions">
+            <svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 18h4"/></svg>
+            Sessions
+            <span class="nav-badge" id="nav-session-count">0</span>
+          </button>
+          <button class="nav-item" data-view="connect">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Connect
+          </button>
+          <button class="nav-item" data-view="commands">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+            Commands
+          </button>
+          <button class="nav-item" data-view="settings">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 14a1.7 1.7 0 0 0-1.6-1H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 3 7.6a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 8 3V3a2 2 0 1 1 4 0v.1A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 10h.1a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z"/></svg>
+            Settings
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <div class="conn" id="conn-pill">
+            <span class="dot"></span><span id="conn-text">connecting…</span>
+          </div>
+          <a class="ghost-link" href="https://t.me/aa_md_2bot" target="_blank" rel="noopener">Telegram bot ↗</a>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h2 id="view-title">Overview</h2>
+            <p id="view-sub" class="muted">Everything happening on your bot, at a glance.</p>
+          </div>
+          <div class="topbar-actions">
+            <button id="refresh" class="btn btn-ghost" title="Refresh now">
+              <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+              Refresh
+            </button>
+            <button class="btn btn-primary" data-goto="connect">+ New session</button>
+          </div>
+        </header>
+
+        <!-- Overview -->
+        <section class="view is-active" id="view-overview">
+          <div class="stats" id="stat-grid">
+            <article class="stat"><span class="stat-label">Status</span><strong id="s-status">—</strong><small id="s-mode">—</small></article>
+            <article class="stat"><span class="stat-label">Uptime</span><strong id="s-uptime">—</strong><small>since last restart</small></article>
+            <article class="stat"><span class="stat-label">Sessions</span><strong id="s-sessions">—</strong><small id="s-sessions-sub">—</small></article>
+            <article class="stat"><span class="stat-label">Commands</span><strong id="s-plugins">—</strong><small id="s-cats">—</small></article>
+            <article class="stat"><span class="stat-label">Groups</span><strong id="s-groups">—</strong><small>with stored settings</small></article>
+            <article class="stat"><span class="stat-label">Memory</span><strong id="s-ram">—</strong><small>heap used</small></article>
+          </div>
+
+          <div class="grid-2">
+            <article class="card">
+              <header class="card-head">
+                <h3>Storage</h3>
+                <span class="chip chip-muted" id="storage-chip">—</span>
+              </header>
+              <div class="card-body" id="storage-body">
+                <p class="muted">Checking backend…</p>
+              </div>
+            </article>
+
+            <article class="card">
+              <header class="card-head">
+                <h3>Live events</h3>
+                <span class="chip chip-muted" id="sse-chip">idle</span>
+              </header>
+              <div class="card-body">
+                <ul class="event-log" id="event-log">
+                  <li class="muted">Waiting for events…</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+
+          <article class="card">
+            <header class="card-head"><h3>Bot config</h3></header>
+            <div class="card-body kv" id="config-grid">
+              <div><span>Name</span><strong>—</strong></div>
+              <div><span>Version</span><strong>—</strong></div>
+              <div><span>Prefix</span><strong>—</strong></div>
+              <div><span>Mode</span><strong>—</strong></div>
+            </div>
+          </article>
+        </section>
+
+        <!-- Sessions -->
+        <section class="view" id="view-sessions">
+          <article class="card">
+            <header class="card-head">
+              <h3>Connected numbers</h3>
+              <span class="chip chip-muted" id="sessions-chip">0</span>
+            </header>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr><th>Session</th><th>Status</th><th>Connected</th><th class="right">Actions</th></tr>
+                </thead>
+                <tbody id="sessions-body">
+                  <tr><td colspan="4" class="muted center">Loading…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <!-- Connect -->
+        <section class="view" id="view-connect">
+          <div class="grid-2">
+            <article class="card">
+              <header class="card-head"><h3>Link a WhatsApp number</h3></header>
+              <div class="card-body">
+                <label class="field">
+                  <span>Session id</span>
+                  <input id="new-session-id" type="text" placeholder="default" maxlength="30" spellcheck="false" />
+                  <small class="muted">Letters, numbers, - and _ only. One id per number.</small>
+                </label>
+
+                <div class="segmented" role="tablist">
+                  <button class="seg is-active" data-method="qr">QR code</button>
+                  <button class="seg" data-method="pairing">Pairing code</button>
+                </div>
+
+                <label class="field" id="phone-field" hidden>
+                  <span>Phone number</span>
+                  <input id="new-session-phone" type="tel" placeholder="923001234567" inputmode="numeric" />
+                  <small class="muted">Country code + number, digits only.</small>
+                </label>
+
+                <button id="create-session" class="btn btn-primary btn-block">Start session</button>
+                <p class="hint">WhatsApp → Settings → Linked devices → Link a device.</p>
+              </div>
+            </article>
+
+            <article class="card">
+              <header class="card-head">
+                <h3 id="pair-title">Waiting for a session…</h3>
+                <span class="chip chip-muted" id="pair-chip">idle</span>
+              </header>
+              <div class="card-body center">
+                <div class="qr-frame" id="qr-frame">
+                  <img id="qr-img" alt="WhatsApp QR code" hidden />
+                  <div id="qr-placeholder" class="qr-placeholder">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14h1M14 20h1M18 20h3"/></svg>
+                    <span>QR appears here</span>
+                  </div>
+                </div>
+
+                <div class="code-box" id="code-box" hidden>
+                  <span class="muted">Pairing code</span>
+                  <strong id="pair-code">········</strong>
+                  <button class="btn btn-ghost btn-sm" id="copy-code">Copy</button>
+                </div>
+
+                <p class="muted" id="pair-hint">Start a session to see the QR code or pairing code.</p>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- Commands -->
+        <section class="view" id="view-commands">
+          <article class="card">
+            <header class="card-head">
+              <h3>Command registry</h3>
+              <span class="chip chip-muted" id="cmd-count">—</span>
+            </header>
+            <div class="card-body">
+              <div class="toolbar">
+                <input id="cmd-search" class="search" type="search" placeholder="Search commands, aliases, descriptions…" />
+                <div class="chips" id="cmd-cats"></div>
+              </div>
+              <div class="table-wrap scroll-y">
+                <table class="table">
+                  <thead><tr><th>Command</th><th>Description</th><th>Aliases</th><th>Access</th></tr></thead>
+                  <tbody id="cmd-body">
+                    <tr><td colspan="4" class="muted center">Loading…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- Settings -->
+        <section class="view" id="view-settings">
+          <div class="grid-2">
+            <article class="card">
+              <header class="card-head"><h3>Connection</h3></header>
+              <div class="card-body">
+                <label class="field">
+                  <span>Bot URL</span>
+                  <input id="set-base" type="url" spellcheck="false" />
+                </label>
+                <label class="field">
+                  <span>API token</span>
+                  <input id="set-token" type="password" spellcheck="false" />
+                </label>
+                <div class="row">
+                  <button id="save-settings" class="btn btn-primary">Save &amp; reconnect</button>
+                  <button id="logout" class="btn btn-ghost">Forget token</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="card">
+              <header class="card-head"><h3>Guides</h3></header>
+              <div class="card-body links">
+                <a href="https://supabase.com/dashboard" target="_blank" rel="noopener">Supabase dashboard ↗</a>
+                <a href="https://vercel.com/dashboard" target="_blank" rel="noopener">Vercel dashboard ↗</a>
+                <a href="https://fly.io/dashboard" target="_blank" rel="noopener">Fly.io (24/7 bot host) ↗</a>
+                <a href="https://github.com/ahsanaliwadani/AA-MD-Bot" target="_blank" rel="noopener">Repository ↗</a>
+              </div>
+            </article>
+          </div>
+
+          <article class="card">
+            <header class="card-head"><h3>Backend</h3></header>
+            <div class="card-body kv" id="settings-backend">
+              <div><span>Storage</span><strong>—</strong></div>
+              <div><span>Health</span><strong>—</strong></div>
+              <div><span>API base</span><strong id="api-base-echo">—</strong></div>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div id="toasts" class="toasts"></div>
+
+    <script src="/config.js"></script>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

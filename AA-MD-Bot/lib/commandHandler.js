@@ -377,19 +377,44 @@ export async function handleMessage(sock, msg, sessionId) {
       return;
     }
 
-    if (plugin.adminOnly && isGroupMsg) {
+    // ── Group role resolution ────────────────────────────────────────────
+    // `isAdmin` / `isBotAdmin` are injected into every plugin context. The
+    // metadata is cached (90 s), so this is cheap after the first call.
+    let isAdmin = false;
+    let isBotAdmin = false;
+
+    if (isGroupMsg) {
       try {
         const meta = await getCachedGroupMeta(sock, jid);
         const normJid = (id) =>
           id?.includes(":") ? id.split(":")[0] + "@s.whatsapp.net" : id;
-        const admins = meta.participants
+        const admins = (meta.participants || [])
           .filter((p) => p.admin)
           .map((p) => normJid(p.id));
-        if (!admins.includes(normJid(senderJid)) && !owner) {
-          await reply(sock, msg, "👮 Group admins only.").catch(() => {});
-          return;
-        }
-      } catch {}
+        const botId = normJid(sock.user?.id);
+        isAdmin = admins.includes(normJid(senderJid));
+        isBotAdmin = !!botId && admins.includes(botId);
+      } catch {
+        // Metadata unavailable — treat as non-admin rather than throwing.
+      }
+    }
+
+    if (plugin.adminOnly && isGroupMsg) {
+      if (!isAdmin && !owner) {
+        await reply(sock, msg, "👮 Group admins only.").catch(() => {});
+        return;
+      }
+    }
+
+    if (plugin.botAdminOnly && isGroupMsg) {
+      if (!isBotAdmin) {
+        await reply(
+          sock,
+          msg,
+          "🤖 I need to be a *group admin* to do that. Please promote me first.",
+        ).catch(() => {});
+        return;
+      }
     }
 
     // Skip composing presence when fake last seen is active — firing "composing"
@@ -498,6 +523,8 @@ export async function handleMessage(sock, msg, sessionId) {
       sessionId,
       isOwner: owner,
       isSudo: owner,
+      isAdmin,
+      isBotAdmin,
       reply: _replyFn,
       react: (e) => react(sock, msg, e),
       send: _sendFn,

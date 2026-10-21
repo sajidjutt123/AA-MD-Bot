@@ -5,7 +5,7 @@
 
 export default {
   command: 'flood',
-  alias: ['repeat', 'spam', 'multisend'],
+  alias: ['spam', 'multisend'],
   category: 'gb',
   description: 'Send a message multiple times (owner only)',
   usage: '.flood <count> <message>  e.g.  .flood 5 Hello!',

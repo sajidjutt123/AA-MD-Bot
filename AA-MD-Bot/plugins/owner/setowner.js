@@ -1,6 +1,5 @@
 export default {
   command: 'setowner',
-  alias: ['addowner'],
   description: 'Add a permanent bot owner',
   category: 'owner',
   ownerOnly: true,

@@ -1,12 +1,10 @@
-import { exec } from 'child_process';
 import { downloadMediaMessage } from '@whiskeysockets/baileys';
-import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateId } from '../../lib/helper.js';
+import { runFfmpeg } from '../../lib/ffmpeg.js';
 
-const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tmpDir = path.join(__dirname, '../../temp');
 
@@ -28,7 +26,7 @@ export default {
       const inputPath = path.join(tmpDir, `${id}_in.jpg`);
       const outputPath = path.join(tmpDir, `${id}_bw.jpg`);
       await fs.writeFile(inputPath, buffer);
-      await execAsync(`ffmpeg -i "${inputPath}" -vf "hue=s=0" "${outputPath}"`, { timeout: 15000 });
+      await runFfmpeg(['-y', '-i', inputPath, '-vf', 'hue=s=0', outputPath], 15000);
       const resultBuffer = await fs.readFile(outputPath);
       await sock.sendMessage(jid, { image: resultBuffer, caption: '⬛ Converted to Black & White' }, { quoted: msg });
       await fs.remove(inputPath).catch(() => {});

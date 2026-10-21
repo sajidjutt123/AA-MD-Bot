@@ -13,7 +13,8 @@ const TOKEN    = process.env.TELEGRAM_BOT_TOKEN;
 const HTML     = { parse_mode: 'HTML' };
 
 // ── Admin-only Telegram user ──────────────────────────────────────────────────
-const OWNER_ID = 6001083166;
+// Override with TELEGRAM_OWNER_ID in .env instead of editing this file.
+const OWNER_ID = Number(process.env.TELEGRAM_OWNER_ID || 6001083166);
 
 const DIV    = '━━━━━━━━━━━━━━━━━━━━━━';
 const FOOTER = `\n${DIV}\n🤖 <b>AA MD Bot</b> | <a href="https://t.me/aa_md_2bot">@aa_md_2bot</a>`;
@@ -25,7 +26,7 @@ let _deleteSession  = null;
 let _latestCodes    = null;
 let _botEvents      = null;
 let _getAllSessions  = null;
-let _broadcastFn    = null;
+let _sockets        = null;   // sessionId → Baileys socket (live instances)
 
 // sessionId → Map<chatId, msgId>  (stores the "Waiting..." message to edit in-place)
 const _pairingWaiters = new Map();
@@ -180,7 +181,7 @@ const BOT_FEATURES_TEXT =
   `<i>Connect your number using this bot, then enjoy all features on WhatsApp and Telegram!</i>`;
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-export function initTelegramAdmin({ createSession, deleteSession, getAllSessions, latestPairingCodes, botEvents }) {
+export function initTelegramAdmin({ createSession, deleteSession, getAllSessions, latestPairingCodes, botEvents, sockets }) {
   if (!TOKEN) {
     logger.warn('⚡ TELEGRAM_BOT_TOKEN not set — Telegram admin bot disabled');
     return;
@@ -190,6 +191,7 @@ export function initTelegramAdmin({ createSession, deleteSession, getAllSessions
   _deleteSession = deleteSession;
   _latestCodes   = latestPairingCodes;
   _botEvents     = botEvents;
+  _sockets       = sockets || null;
   _getAllSessions = getAllSessions;
 
   const bot = new TelegramBot(TOKEN, { polling: true });
@@ -446,7 +448,8 @@ export function initTelegramAdmin({ createSession, deleteSession, getAllSessions
       `📵 <b>Disconnect Session</b>\n${DIV}\n\nUsage: <code>/disconnect 923001234567</code>\n\nUse /sessions to see active sessions.` + FOOTER
     );
     try {
-      const sessionId = phone.startsWith('tg_') ? phone : `tg_${phone}`;
+      // Pairing sessions are always named tg_<phone> (see doPair()).
+      const sessionId = `tg_${phone}`;
       if (!_deleteSession) throw new Error('Session manager not ready');
       await _deleteSession(sessionId);
       sendText(bot, msg.chat.id,
@@ -464,14 +467,28 @@ export function initTelegramAdmin({ createSession, deleteSession, getAllSessions
     if (!text) return sendText(bot, msg.chat.id, `❌ Provide a message.\nUsage: /broadcast Your message`);
 
     try {
-      const sessions = _getAllSessions ? await _getAllSessions() : [];
-      const active   = sessions.filter(s => s.status === 'connected' || s.connected);
-      let ok = 0, fail = 0;
-      // Broadcast is fired from WhatsApp side via bot events if available
-      _botEvents.emit('broadcastRequest', { text, sessionCount: active.length });
-      ok = active.length;
+      // Actually deliver — previously this emitted an event nobody listened to
+      // and reported success anyway.
+      if (!_sockets || !_sockets.size) throw new Error('No sessions are connected');
+
+      let sent = 0, failed = 0;
+      for (const [, sock] of _sockets) {
+        const selfJid = sock?.user?.id;
+        if (!selfJid) { failed++; continue; }
+        try {
+          await sock.sendMessage(selfJid, { text: `📢 *Broadcast*\n\n${text}\n\n> 🤖 *AA MD Bot*` });
+          sent++;
+          await new Promise(r => setTimeout(r, 800)); // avoid WA rate limits
+        } catch {
+          failed++;
+        }
+      }
+
       sendText(bot, msg.chat.id,
-        `📢 <b>Broadcast Queued</b>\n\nMessage sent to <b>${ok}</b> session(s).\n\n<i>${esc(text.slice(0, 100))}</i>` + FOOTER
+        `📢 <b>Broadcast Complete</b>\n${DIV}\n\n` +
+        `✅ Sent: <b>${sent}</b>\n` +
+        `❌ Failed: <b>${failed}</b>\n\n` +
+        `<i>${esc(text.slice(0, 100))}</i>` + FOOTER
       );
     } catch (e) {
       sendText(bot, msg.chat.id, `❌ Broadcast failed: ${esc(e.message)}` + FOOTER);

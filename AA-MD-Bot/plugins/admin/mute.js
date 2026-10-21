@@ -1,6 +1,6 @@
 export default {
   command: 'mute',
-  alias: ['lock'],
+  alias: ['lock', 'close', 'lockgroup'],
   description: 'Mute the group (admins only can send)',
   category: 'admin',
   groupOnly: true,

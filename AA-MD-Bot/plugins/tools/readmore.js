@@ -1,6 +1,6 @@
 export default {
   command: 'readmore',
-  alias: ['rm', 'fake', 'blur'],
+  alias: ['rm', 'fake'],
   description: 'Create a "Read More" message with hidden text',
   category: 'tools',
   usage: '.readmore <visible> | <hidden>',
